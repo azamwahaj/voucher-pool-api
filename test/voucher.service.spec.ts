@@ -86,6 +86,11 @@ describe('VoucherService', () => {
 
     // Reset all mocks before each test
     jest.clearAllMocks();
+    jest.useRealTimers(); // Ensure real timers are used by default
+  });
+
+  afterEach(() => {
+    jest.useRealTimers(); // Clean up fake timers after each test
   });
 
   it('should be defined', () => {
@@ -218,8 +223,13 @@ describe('VoucherService', () => {
     };
 
     it('should successfully redeem a valid voucher', async () => {
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(mockCustomer).mockResolvedValueOnce(mockValidVoucher);
-      mockQueryRunner.manager.save.mockResolvedValue({ ...mockValidVoucher, isUsed: true, usageDate: new Date() }); // Mock saving used voucher
+      // Mock findOne for Customer, then for Voucher, then for SpecialOffer
+      mockQueryRunner.manager.findOne
+        .mockResolvedValueOnce(mockCustomer) // First call: find Customer
+        .mockResolvedValueOnce(mockValidVoucher) // Second call: find Voucher with lock
+        .mockResolvedValueOnce(mockSpecialOffer); // Third call: find SpecialOffer
+
+      mockQueryRunner.manager.save.mockResolvedValue({ ...mockValidVoucher, isUsed: true, usageDate: new Date() });
 
       const result = await service.redeemVoucher(redeemVoucherDto);
 
@@ -229,9 +239,9 @@ describe('VoucherService', () => {
       expect(mockQueryRunner.manager.findOne).toHaveBeenCalledWith(Customer, { where: { email: redeemVoucherDto.customerEmail } });
       expect(mockQueryRunner.manager.findOne).toHaveBeenCalledWith(Voucher, {
         where: { code: redeemVoucherDto.code },
-        relations: ['specialOffer'],
         lock: { mode: 'for_no_key_update' },
       });
+      expect(mockQueryRunner.manager.findOne).toHaveBeenCalledWith(SpecialOffer, { where: { id: mockSpecialOffer.id } });
       expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(Voucher, expect.objectContaining({ isUsed: true }));
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(mockQueryRunner.release).toHaveBeenCalled();
@@ -256,7 +266,10 @@ describe('VoucherService', () => {
 
     it('should throw BadRequestException if voucher is not assigned to customer', async () => {
       const voucherNotAssigned = { ...mockValidVoucher, customerId: 'another-cust-id' };
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(mockCustomer).mockResolvedValueOnce(voucherNotAssigned);
+      mockQueryRunner.manager.findOne
+        .mockResolvedValueOnce(mockCustomer)
+        .mockResolvedValueOnce(voucherNotAssigned)
+        .mockResolvedValueOnce(mockSpecialOffer); // Ensure special offer is found
 
       await expect(service.redeemVoucher(redeemVoucherDto)).rejects.toThrow(BadRequestException);
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
@@ -265,7 +278,10 @@ describe('VoucherService', () => {
 
     it('should throw BadRequestException if voucher is already used', async () => {
       const usedVoucher = { ...mockValidVoucher, isUsed: true, usageDate: new Date() };
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(mockCustomer).mockResolvedValueOnce(usedVoucher);
+      mockQueryRunner.manager.findOne
+        .mockResolvedValueOnce(mockCustomer)
+        .mockResolvedValueOnce(usedVoucher)
+        .mockResolvedValueOnce(mockSpecialOffer); // Ensure special offer is found
 
       await expect(service.redeemVoucher(redeemVoucherDto)).rejects.toThrow(BadRequestException);
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
@@ -274,15 +290,21 @@ describe('VoucherService', () => {
 
     it('should throw BadRequestException if voucher has expired', async () => {
       const expiredVoucher = { ...mockValidVoucher, expirationDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)) }; // 1 year ago
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(mockCustomer).mockResolvedValueOnce(expiredVoucher);
+      mockQueryRunner.manager.findOne
+        .mockResolvedValueOnce(mockCustomer)
+        .mockResolvedValueOnce(expiredVoucher)
+        .mockResolvedValueOnce(mockSpecialOffer); // Ensure special offer is found
 
-      await expect(service.redeeMVoucher(redeemVoucherDto)).rejects.toThrow(BadRequestException);
+      await expect(service.redeemVoucher(redeemVoucherDto)).rejects.toThrow(BadRequestException);
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
       expect(mockQueryRunner.release).toHaveBeenCalled();
     });
 
     it('should rollback transaction on error', async () => {
-      mockQueryRunner.manager.findOne.mockResolvedValueOnce(mockCustomer).mockRejectedValueOnce(new Error('DB Error'));
+      // Mock an error during the process (e.g., finding the voucher)
+      mockQueryRunner.manager.findOne
+        .mockResolvedValueOnce(mockCustomer)
+        .mockRejectedValueOnce(new Error('DB Error'));
 
       await expect(service.redeemVoucher(redeemVoucherDto)).rejects.toThrow('DB Error');
       expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
@@ -308,34 +330,51 @@ describe('VoucherService', () => {
       id: 'offer-uuid-4', name: 'Offer B', discountPercentage: 15, createdAt: new Date(), updatedAt: new Date(), vouchers: []
     };
 
-    const now = new Date();
-    const expiredDate = new Date(now.getTime() - 1000); // 1 second ago
-    const futureDate = new Date(now.getTime() + 1000 * 60 * 60); // 1 hour from now
+    let fixedNow: Date;
 
-    const mockVouchers: Voucher[] = [
+    beforeEach(() => {
+      // Use fake timers to control Date.now()
+      jest.useFakeTimers();
+      fixedNow = new Date('2025-06-22T12:00:00Z'); // A fixed point in time
+      jest.setSystemTime(fixedNow);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers(); // Restore real timers after each test
+    });
+
+
+    const mockVouchers = (now: Date) => ([
       { // Valid voucher
-        id: 'v1', code: 'CODE1', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer1.id, expirationDate: futureDate,
+        id: 'v1', code: 'CODE1', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer1.id, expirationDate: new Date(now.getTime() + 1000 * 60 * 60), // 1 hour from now
         isUsed: false, usageDate: null, createdAt: now, updatedAt: now, customer: mockCustomer, specialOffer: mockSpecialOffer1,
       },
       { // Expired voucher
-        id: 'v2', code: 'CODE2', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer1.id, expirationDate: expiredDate,
+        id: 'v2', code: 'CODE2', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer1.id, expirationDate: new Date(now.getTime() - 1000), // 1 second ago
         isUsed: false, usageDate: null, createdAt: now, updatedAt: now, customer: mockCustomer, specialOffer: mockSpecialOffer1,
       },
-      { // Used voucher
-        id: 'v3', code: 'CODE3', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer2.id, expirationDate: futureDate,
+      { // Used voucher (should be filtered by isUsed: false in query)
+        id: 'v3', code: 'CODE3', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer2.id, expirationDate: new Date(now.getTime() + 1000 * 60 * 60), // 1 hour from now
         isUsed: true, usageDate: now, createdAt: now, updatedAt: now, customer: mockCustomer, specialOffer: mockSpecialOffer2,
       },
       { // Another valid voucher
-        id: 'v4', code: 'CODE4', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer2.id, expirationDate: futureDate,
+        id: 'v4', code: 'CODE4', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer2.id, expirationDate: new Date(now.getTime() + 1000 * 60 * 60 * 2), // 2 hours from now
         isUsed: false, usageDate: null, createdAt: now, updatedAt: now, customer: mockCustomer, specialOffer: mockSpecialOffer2,
       },
-    ];
+    ]);
+
 
     it('should return valid vouchers for a given email', async () => {
       mockCustomerService.findByEmail.mockResolvedValue(mockCustomer);
-      // TypeORM's find where clause for `expirationDate` doesn't support direct comparison for `>` or `>=` like this
-      // The service explicitly filters out expired ones after fetching.
-      mockVoucherRepository.find.mockResolvedValue(mockVouchers);
+
+      // Mock the find method to return only the non-used vouchers as per the query's 'where' clause
+      mockVoucherRepository.find.mockImplementation((options) => {
+        const allVouchers = mockVouchers(fixedNow);
+        if (options?.where && options.where['isUsed'] === false) {
+          return Promise.resolve(allVouchers.filter(v => !v.isUsed));
+        }
+        return Promise.resolve(allVouchers);
+      });
 
       const result = await service.getValidVouchersByEmail(customerEmail);
 
@@ -352,24 +391,23 @@ describe('VoucherService', () => {
       expect(result.length).toBe(2);
       expect(result).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ code: 'CODE1', specialOfferName: 'Offer A', discountPercentage: 5 }),
-          expect.objectContaining({ code: 'CODE4', specialOfferName: 'Offer B', discountPercentage: 15 }),
+          expect.objectContaining({ code: 'CODE1', specialOfferName: 'Offer A', discountPercentage: 5, expirationDate: expect.any(Date) }),
+          expect.objectContaining({ code: 'CODE4', specialOfferName: 'Offer B', discountPercentage: 15, expirationDate: expect.any(Date) }),
         ]),
       );
     });
 
     it('should return an empty array if no valid vouchers found', async () => {
       mockCustomerService.findByEmail.mockResolvedValue(mockCustomer);
-      mockVoucherRepository.find.mockResolvedValue([
-        { // Expired voucher
-          id: 'v2', code: 'CODE2', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer1.id, expirationDate: expiredDate,
-          isUsed: false, usageDate: null, createdAt: now, updatedAt: now, customer: mockCustomer, specialOffer: mockSpecialOffer1,
-        },
-        { // Used voucher
-          id: 'v3', code: 'CODE3', customerId: mockCustomer.id, specialOfferId: mockSpecialOffer2.id, expirationDate: futureDate,
-          isUsed: true, usageDate: now, createdAt: now, updatedAt: now, customer: mockCustomer, specialOffer: mockSpecialOffer2,
-        },
-      ]);
+      // Mock find to return only used and expired vouchers that would be filtered out
+      mockVoucherRepository.find.mockImplementation((options) => {
+        const allVouchers = mockVouchers(fixedNow);
+        if (options?.where && options.where['isUsed'] === false) {
+            return Promise.resolve(allVouchers.filter(v => v.isUsed === false && v.expirationDate < fixedNow)); // Only return expired non-used ones
+        }
+        return Promise.resolve([]);
+      });
+
 
       const result = await service.getValidVouchersByEmail(customerEmail);
       expect(result).toEqual([]);
