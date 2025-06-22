@@ -55,7 +55,7 @@ This is a NestJS application that provides a REST API for managing and redeeming
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/azamwahaj/voucher-pool-api.git
 cd voucher-pool-api
 ```
 
