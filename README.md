@@ -1,98 +1,179 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Voucher Pool API (NestJS)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+This is a NestJS application that provides a REST API for managing and redeeming voucher codes. It features customer and special offer management, voucher generation, redemption with transactions, and API rate limiting.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- Customer Management: Create and retrieve customer information.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Special Offer Management: Create and retrieve special offer details, including discount percentages.
 
-## Project setup
+- Voucher Generation: Generate unique, time-bound voucher codes for specific customers and special offers.
 
-```bash
-$ npm install
-```
+- Voucher Redemption: Validate and redeem voucher codes. This process is atomic using database transactions, marking the voucher as used and returning the discount.
 
-## Compile and run the project
+- Voucher Listing: Retrieve all valid (not expired, not used) vouchers for a given customer email.
 
-```bash
-# development
-$ npm run start
+- API Rate Limiting: Protects endpoints from abuse using @nestjs/throttler.
 
-# watch mode
-$ npm run start:dev
+- Database Transactions: Ensures data consistency during voucher redemption.
 
-# production mode
-$ npm run start:prod
-```
+- Swagger Documentation: Provides interactive API documentation accessible via a web interface.
 
-## Run tests
+- Docker Support: Easily set up the application and its PostgreSQL database using Docker Compose.
 
-```bash
-# unit tests
-$ npm run test
+- Unit Tests: Comprehensive unit tests for core services.
 
-# e2e tests
-$ npm run test:e2e
+## Technologies Used
+- NestJS: A progressive Node.js framework for building efficient, reliable, and scalable server-side applications.
 
-# test coverage
-$ npm run test:cov
-```
+- TypeScript: Type-safe programming language.
 
-## Deployment
+- TypeORM: An ORM (Object Relational Mapper) that runs in Node.js and allows you to work with your database using TypeScript classes.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+- PostgreSQL: A powerful, open source object-relational database system.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+- Docker & Docker Compose: For containerization and easy deployment.
+
+- @nestjs/throttler: For API rate limiting.
+
+- Swagger (OpenAPI): For API documentation.
+
+- Jest: For unit testing.
+
+- nanoid: For generating unique voucher codes.
+
+## Getting Started
+### Prerequisites
+- Node.js (v18 or higher recommended)
+
+- npm (Node Package Manager)
+
+- Docker and Docker Compose
+
+
+### 1. Clone the Repository
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+git clone <your-repo-url>
+cd voucher-pool-api
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 2. Configure Environment Variables
+Create a .env file in the root of the project and populate it with the following:
 
-## Resources
+```bash
+# Database Configuration
+POSTGRES_DB=voucher_db
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+POSTGRES_PORT=5432
 
-Check out a few resources that may come in handy when working with NestJS:
+# Application Configuration
+APP_PORT=3000
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# API Rate Limiting Configuration
+# TTL (Time to Live) in seconds, Limit (max requests within TTL)
+THROTTLER_TTL=60
+THROTTLER_LIMIT=100
+```
 
-## Support
+### 3. Build and Run with Docker Compose (Recommended)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+This method sets up both the PostgreSQL database and the NestJS application in separate containers.
 
-## Stay in touch
+```bash
+docker-compose up --build
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+This command will:
 
-## License
+- Build the `app` Docker image based on the Dockerfile.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- Start the `db` (PostgreSQL) service.
+
+- Start the `app` (NestJS) service.
+
+- The NestJS application will automatically connect to the PostgreSQL database via the `db` service name.
+
+- `synchronize: true` in `TypeOrmModule` will create the database schema automatically on startup (for development). Remember to set `synchronize: false` and use migrations for production environments.
+
+Once the containers are up and running, you should see logs indicating that the NestJS application has started, typically on `http://localhost:3000` (or the `APP_PORT` you configured).
+
+### 4. Access the API Documentation (Swagger)
+
+Open your web browser and navigate to:
+
+`http://localhost:3000/api`
+
+Here you will find interactive API documentation where you can test the endpoints.
+
+### 5. Manual Setup (Alternative to Docker)
+If you prefer to run the application directly on your machine without Docker:
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Start PostgreSQL (e.g., via Docker desktop or local installation)
+#    Ensure your PostgreSQL server is running and accessible at the host and port
+#    specified in your .env file (e.g., localhost:5432).
+
+# 3. Build the application
+npm run build
+
+# 4. Run the application
+npm start
+```
+
+## API Endpoints
+All endpoints are prefixed with `/api` in the Swagger UI.
+
+### Customers
+- `POST /customers`: Create a new customer.
+
+- `GET /customers`: Get all customers.
+
+- `GET /customers/:id`: Get a customer by ID.
+
+- `DELETE /customers/:id`: Delete a customer by ID.
+
+### Special Offers
+- `POST /special-offers`: Create a new special offer.
+
+- `GET /special-offers`: Get all special offers.
+
+- `GET /special-offers/:id`: Get a special offer by ID.
+
+- `DELETE /special-offers/:id`: Delete a special offer by ID.
+
+### Vouchers
+- `POST /vouchers/generate`: Generate a new voucher code for a customer and special offer.
+
+  - Request Body: `customerName`, `customerEmail`, `specialOfferName`, `expirationDate` (ISO 8601 string)
+
+- `POST /vouchers/redeem`: Validate and redeem a voucher code.
+
+  - Request Body: `code`, `customerEmail`
+
+- `GET /vouchers/customer-valid?email={customerEmail}`: Get all valid (not expired, not used) voucher codes for a given customer email.
+
+## Running Tests
+To run the unit tests:
+
+```bash
+npm run test
+```
+
+## Important Considerations for Production
+- Database Migrations: For production environments, set `synchronize: false` in `TypeOrmModule.forRootAsync` in `app.module.ts`. Use TypeORM migrations to manage schema changes (e.g., `typeorm migration:generate`, `typeorm migration:run`).
+
+- Security: Implement authentication (e.g., JWT) and authorization for sensitive endpoints.
+
+- Error Handling: Enhance error handling for more specific and user-friendly messages.
+
+- Logging: Implement a robust logging solution.
+
+- Configuration: Use a more secure configuration management system than plain `.env` files.
+
+- HTTPS: Always deploy with HTTPS in production.
